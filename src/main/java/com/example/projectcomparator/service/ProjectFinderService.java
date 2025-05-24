@@ -1,22 +1,31 @@
 package com.example.projectcomparator.service;
 
-import com.example.projectcomparator.model.FileInfo;
-import com.example.projectcomparator.model.Project;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.*;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Stream;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
+import com.example.projectcomparator.model.FileInfo;
+import com.example.projectcomparator.model.Project;
 
 @Service
 public class ProjectFinderService {
@@ -28,7 +37,7 @@ public class ProjectFinderService {
             // Adicione outras extensões relevantes aqui
     );
     private static final Set<String> EXCLUDED_DIRS = Set.of(
-            "target", "build", ".git", ".svn", ".idea", ".vscode", "node_modules", "out"
+		"target", "build", "bin", ".git", ".svn", ".idea", ".vscode", ".settings", "node_modules", "out", ".mvn", ".gradle", ".angular"
             // Adicione outros diretórios a serem ignorados
     );
     private static final Set<String> EXCLUDED_FILES_BY_NAME = Set.of( // Files to exclude by exact name
@@ -38,7 +47,6 @@ public class ProjectFinderService {
         ".class", ".jar", ".log", ".tmp", ".bak", ".zip", ".gz", ".png", ".jpg", ".jpeg", ".gif"
         // Adicione outras extensões a serem ignoradas
     );
-
 
     public List<Project> findProjects(Path parentDirectory, boolean webProject) {
         List<Project> projects = new ArrayList<>();
@@ -86,7 +94,7 @@ public class ProjectFinderService {
 						return ".html".equals(fileExt) || ".htm".equals(fileExt);
 					})
 					.findFirst();
-			return markerFile.map(Function.identity()).orElse(null);
+			return markerFile.map(Path::getParent).orElse(null);
 		} catch (IOException e) {
             logger.error("Erro ao procurar por arquivo HTML de projeto em {}: {}", directoryToSearch, e.getMessage());
             return null;
@@ -106,57 +114,8 @@ public class ProjectFinderService {
         }
     }
 
-	private Map<String, FileInfo> loadWebFiles(Path projectRoot) throws IOException, NoSuchAlgorithmException {
-		Map<String, FileInfo> files = new HashMap<>();
-        Files.walkFileTree(projectRoot, new SimpleFileVisitor<Path>() {
-            @Override
-            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
-                if (EXCLUDED_DIRS.contains(dir.getFileName().toString().toLowerCase()) &&
-                    !dir.equals(projectRoot)) { // Don't skip the project root itself if it matches an excluded name by chance
-                    logger.debug("Ignorando diretório excluído: {}", dir);
-                    return FileVisitResult.SKIP_SUBTREE;
-                }
-                return FileVisitResult.CONTINUE;
-            }
-
-            @Override
-            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                String fileName = file.getFileName().toString();
-                String fileExtension = getFileExtension(fileName);
-
-                if (EXCLUDED_FILES_BY_NAME.contains(fileName) || EXCLUDED_EXTENSIONS.contains(fileExtension) || !RELEVANT_EXTENSIONS.contains(fileExtension)) {
-                    logger.trace("Ignorando arquivo: {}", file);
-                    return FileVisitResult.CONTINUE;
-                }
-
-                try {
-                    String relativePath = projectRoot.relativize(file).toString().replace("\\", "/"); // Normalizar separadores
-                    String contentHash = calculateSHA256(file);
-                    FileTime creationTime = attrs.creationTime();
-                    FileTime lastModifiedTime = attrs.lastModifiedTime();
-
-                    files.put(relativePath, new FileInfo(relativePath, file, creationTime, lastModifiedTime));
-
-                    logger.debug("Arquivo adicionado: {}", relativePath);
-                } catch (NoSuchAlgorithmException e) {
-                    throw new IOException("Erro ao calcular hash para " + file, e);
-                } catch (Exception e) {
-                    logger.error("Erro ao processar arquivo {}: {}", file, e.getMessage());
-                }
-                return FileVisitResult.CONTINUE;
-            }
-
-            @Override
-            public FileVisitResult visitFileFailed(Path file, IOException exc) {
-                logger.warn("Não foi possível acessar o arquivo: {}. Causa: {}", file, exc != null ? exc.getMessage() : "N/A");
-                return FileVisitResult.CONTINUE;
-            }
-        });
-        return files;
-	}
-
     private Map<String, FileInfo> loadProjectFiles(Path projectRoot) throws IOException, NoSuchAlgorithmException {
-        Map<String, FileInfo> files = new HashMap<>();
+        Map<String, FileInfo> files = new LinkedHashMap<>();
         Files.walkFileTree(projectRoot, new SimpleFileVisitor<Path>() {
             @Override
             public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {

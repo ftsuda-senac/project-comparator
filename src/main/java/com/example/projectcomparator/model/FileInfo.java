@@ -2,6 +2,9 @@ package com.example.projectcomparator.model;
 
 import java.nio.file.Path; // Novo import
 import java.nio.file.attribute.FileTime;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Objects;
 
 public class FileInfo {
@@ -43,8 +46,14 @@ public class FileInfo {
         return Objects.hash(relativePath, absolutePath, creationTime, lastModifiedTime);
     }
 
+	private String formatDate(FileTime fileTime) {
+		LocalDateTime localDate = LocalDateTime.ofInstant(fileTime.toInstant(), ZoneId.systemDefault());
+		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+		return localDate.format(formatter);
+	}
+
 	public String printFileInfo() {
-		return relativePath + " " + creationTime + " " + lastModifiedTime;
+		return relativePath + " " + formatDate(creationTime) + " " + formatDate(lastModifiedTime);
 	}
 
     @Override

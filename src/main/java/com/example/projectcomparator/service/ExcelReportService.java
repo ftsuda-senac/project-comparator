@@ -25,6 +25,28 @@ public class ExcelReportService {
     private static final Logger logger = LoggerFactory.getLogger(ExcelReportService.class);
     private static final String DEFAULT_SHEET_NAME = "Similaridade de Projetos";
 
+    private void addComment(Workbook workbook, Sheet sheet, Cell cell, String commentText) {
+        CreationHelper factory = workbook.getCreationHelper();
+
+        ClientAnchor anchor = factory.createClientAnchor();
+        anchor.setCol1(cell.getColumnIndex());
+        anchor.setCol2(cell.getColumnIndex() + 2);
+        anchor.setRow1(cell.getRowIndex());
+        anchor.setRow2(cell.getRowIndex() + 2);
+        // i found it useful to show the comment box at the bottom right corner
+        // anchor.setCol1(cell.getColumnIndex() + 1); // the box f the comment starts at this given column...
+        // anchor.setCol2(cell.getColumnIndex() + 3); // ...and ends at that given column
+        // anchor.setRow1(rowIdx + 1); // one row below the cell...
+        // anchor.setRow2(rowIdx + 5); // ...and 4 rows high
+
+        Drawing<?> drawing = sheet.createDrawingPatriarch();
+        Comment comment = drawing.createCellComment(anchor);
+        // set the comment text and author
+        comment.setString(factory.createRichTextString(commentText));
+        comment.setAuthor("ftsuda");
+        cell.setCellComment(comment);
+    }
+
     private void setCellBorders(CellStyle style) {
         style.setBorderBottom(BorderStyle.THIN);
         style.setBottomBorderColor(IndexedColors.GREY_40_PERCENT.getIndex());
@@ -54,7 +76,7 @@ public class ExcelReportService {
 
         try (XSSFWorkbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet(DEFAULT_SHEET_NAME);
-            sheet.createFreezePane(1, 1);
+            sheet.createFreezePane(1, 1); // (qtde de cima para baixo, qtde esquerda para direita)
 
             // --- Criação de Estilos ---
             DataFormat dataFormat = workbook.createDataFormat();
@@ -78,6 +100,13 @@ public class ExcelReportService {
             rowHeaderStyle.setFillForegroundColor(new XSSFColor(new java.awt.Color(127, 140, 141), null)); // #7f8c8d (Cinza)
             rowHeaderStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
             rowHeaderStyle.setAlignment(HorizontalAlignment.LEFT);
+
+			// Estilo para células com informações do projeto
+			// Estilo padrão para outras células de dados
+            XSSFCellStyle infoDataStyle = workbook.createCellStyle();
+            infoDataStyle.setAlignment(HorizontalAlignment.LEFT);
+			infoDataStyle.setWrapText(true);
+            setCellBorders(infoDataStyle);
 
             // Estilo para células de dados com similaridade > 20%
             XSSFCellStyle highlightStyle = workbook.createCellStyle();
@@ -117,14 +146,13 @@ public class ExcelReportService {
             topLeftCell.setCellValue("Projetos");
             topLeftCell.setCellStyle(headerStyle); // Usar o mesmo estilo dos outros cabeçalhos
 
-			// Linha com dados do projeto
-			Cell topLeftCell2 = headerRow.createCell(1); // Célula do canto superior esquerdo
-			topLeftCell2.setCellValue("Informações");
-            topLeftCell2.setCellStyle(headerStyle); // Usar o mesmo estilo dos outros cabeçalhos
-
+			// // Linha com dados do projeto
+			// Cell topLeftCell2 = headerRow.createCell(1); // Célula do canto superior esquerdo
+			// topLeftCell2.setCellValue("Informações");
+            // topLeftCell2.setCellStyle(headerStyle); // Usar o mesmo estilo dos outros cabeçalhos
 
             for (int i = 0; i < sortedProjectNames.size(); i++) {
-                Cell cell = headerRow.createCell(i + 2);
+                Cell cell = headerRow.createCell(i + 1);
                 cell.setCellValue(sortedProjectNames.get(i));
                 cell.setCellStyle(headerStyle);
             }
@@ -139,13 +167,19 @@ public class ExcelReportService {
                 rowHeaderCell.setCellValue(rowProjName);
                 rowHeaderCell.setCellStyle(rowHeaderStyle);
 
-				Cell rowHeaderCell2 = dataRow.createCell(1);
-                rowHeaderCell2.setCellValue(projectMap.get(rowProjName).printFileInfo());
-                rowHeaderCell2.setCellStyle(defaultDataStyle);
+				String fileInfo = projectMap.get(rowProjName).printFileInfo();
+				if (fileInfo.length() > 32767) {
+					fileInfo = fileInfo.substring(0,32767);
+				}
+				addComment(workbook, sheet, rowHeaderCell, fileInfo);
+
+				// Cell rowHeaderCell2 = dataRow.createCell(1);
+                // rowHeaderCell2.setCellValue(fileInfo);
+                // rowHeaderCell2.setCellStyle(infoDataStyle);
 
                 for (int j = 0; j < sortedProjectNames.size(); j++) {
                     String colProjName = sortedProjectNames.get(j);
-                    Cell dataCell = dataRow.createCell(j + 2);
+                    Cell dataCell = dataRow.createCell(j + 1);
 
                     double similarity = similarityScores
                                             .getOrDefault(rowProjName, new HashMap<>())
@@ -165,9 +199,9 @@ public class ExcelReportService {
 
             // Ajustar largura das colunas
             sheet.setColumnWidth(0, 25 * 256); // Largura para a primeira coluna (nomes dos projetos)
-			sheet.autoSizeColumn(1);
+			// sheet.autoSizeColumn(1);
             for (int i = 0; i < sortedProjectNames.size(); i++) {
-                sheet.setColumnWidth(i + 2, 15 * 256); // Largura para colunas de dados
+                sheet.setColumnWidth(i + 1, 15 * 256); // Largura para colunas de dados
                 // Alternativamente, usar autoSizeColumn, mas pode ser lento para muitas colunas/linhas
                 // sheet.autoSizeColumn(i + 1);
             }

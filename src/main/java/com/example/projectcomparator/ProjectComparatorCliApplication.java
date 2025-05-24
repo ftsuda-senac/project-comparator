@@ -68,7 +68,9 @@ public class ProjectComparatorCliApplication implements CommandLineRunner {
 
         String parentPath = "E:\\senac\\pwb-25-1\\ado3";
 		boolean webProject = true;
-		double similarityThreshold = webProject ? 65.0 : 20.0; // Usar 60 para HTML/CSS/JS e 20 para Java
+		// String parentPath = "E:\\projetos\\senac\\24-2\\dswa\\projetos\\teste";
+		// boolean webProject = false;
+		double similarityThreshold = webProject ? 40.0 : 20.0; // Usar 40 para HTML/CSS/JS e 20 para Java
 
         Path parentDirectory = Paths.get(parentPath);
         if (!Files.isDirectory(parentDirectory)) {
@@ -82,7 +84,7 @@ public class ProjectComparatorCliApplication implements CommandLineRunner {
                                     ? args[1].trim()
                                     : DEFAULT_BASE_FILENAME + '_' + timestamp;
 
-        String htmlOutputFileName = baseOutputFilename + ".html";
+        // String htmlOutputFileName = baseOutputFilename + ".html";
         String excelOutputFileName = baseOutputFilename + ".xlsx";
 
 
@@ -94,7 +96,7 @@ public class ProjectComparatorCliApplication implements CommandLineRunner {
             System.out.println("Nenhum projeto encontrado. Nenhum relatório será gerado.");
             // Gerar um HTML vazio ou com mensagem se desejado, mesmo sem projetos
             try {
-                htmlReportService.generateReport(Collections.emptyList(), Collections.emptyMap(), new HashMap<>(), similarityThreshold, htmlOutputFileName);
+               // htmlReportService.generateReport(Collections.emptyList(), Collections.emptyMap(), new HashMap<>(), similarityThreshold, htmlOutputFileName);
                 excelReportService.generateReport(Collections.emptyList(), Collections.emptyMap(), new HashMap<>(), similarityThreshold, excelOutputFileName);
             } catch (IOException e) {
                 logger.error("Falha ao tentar gerar relatório HTML vazio: {}", e.getMessage(), e);
@@ -155,13 +157,13 @@ public class ProjectComparatorCliApplication implements CommandLineRunner {
         logger.info("Análise de similaridade concluída.");
 
         // Gerar Relatório HTML
-        logger.info("Gerando relatório HTML...");
-        try {
-            htmlReportService.generateReport(sortedProjectNames, projectMap, similarityScores, similarityThreshold, htmlOutputFileName);
-        } catch (IOException e) {
-            logger.error("Falha ao gerar relatório HTML: {}", e.getMessage(), e);
-            System.err.println("Falha ao gerar relatório HTML: " + e.getMessage());
-        }
+        // logger.info("Gerando relatório HTML...");
+        // try {
+        //     htmlReportService.generateReport(sortedProjectNames, projectMap, similarityScores, similarityThreshold, htmlOutputFileName);
+        // } catch (IOException e) {
+        //     logger.error("Falha ao gerar relatório HTML: {}", e.getMessage(), e);
+        //     System.err.println("Falha ao gerar relatório HTML: " + e.getMessage());
+        // }
 
         // Gerar Relatório Excel
         logger.info("Gerando relatório Excel...");
